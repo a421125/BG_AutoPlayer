@@ -35,6 +35,10 @@ end
 
 --通过BPM和beat来获取当前beat的准确时间
 function BangDreamConfig.GetExactTime(BPM,beatIndex)
+    if(beatIndex == nil) then
+        nLog('传入beatInde为nil:'..debug.traceback())
+    end
+    
     local time = 60 / BPM * beatIndex
     return time
 end

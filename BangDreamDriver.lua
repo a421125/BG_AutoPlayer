@@ -97,7 +97,13 @@ function BangDreamDriver.InitMusic(songId,difficulty)
         end
     end
 
-    BangDreamDriver.totalDelay = BangDreamConfig.GetExactTime(BangDreamDriver.curBPM,songInfo[3].beat)
+    --获取开始的延迟时间
+    local curBeatData = songInfo[3]
+    if(curBeatData.type == "Single" or curBeatData.type == "Directional") then
+        BangDreamDriver.totalDelay = BangDreamConfig.GetExactTime(BangDreamDriver.curBPM,curBeatData.beat)
+    elseif(curBeatData.type == "Long" or curBeatData.type == "Slide") then
+        BangDreamDriver.totalDelay = BangDreamConfig.GetExactTime(BangDreamDriver.curBPM,curBeatData.connections[1].beat)
+    end
 end
 
 function BangDreamDriver.Update(frameTime,sinceStartTime)
@@ -112,12 +118,12 @@ function BangDreamDriver.Update(frameTime,sinceStartTime)
     BangDreamDriver.ToExecuteLongUpdate(frameTime,sinceStartTime)
 
     --没写完 暂时屏蔽
-    -- BangDreamDriver.ExecutingSlideUpdate(frameTime,sinceStartTime)
-    -- BangDreamDriver.ToExecuteSlideUpdate(frameTime,sinceStartTime)
+    BangDreamDriver.ExecutingSlideUpdate(frameTime,sinceStartTime)
+    BangDreamDriver.ToExecuteSlideUpdate(frameTime,sinceStartTime)
 
     local executeTime = math.floor((os.clock() - startTime) * 1000)
     if(executeTime > 5) then
-        nLog('当前帧:'..GlobalFrame..' 执行时间:'..executeTime)
+        nLog(' 执行时间:'..executeTime)
     end
 end
 
@@ -336,18 +342,20 @@ end
 --region 滑动模块
 function BangDreamDriver.SlideCreate(beatData)
     local slideData = {}
+    slideData.beat = beatData.connections[1].beat
     slideData.connections = {}
     for i=1,#beatData.connections do
         local curData = beatData.connections[i]
         local curNode = {}
         curNode.lane = curData.lane
         curNode.time = BangDreamConfig.GetExactTime(self.curBPM,curData.beat)
+        curNode.beat = curData.beat
         table.insert(slideData.connections,curNode)
     end
     slideData.flick = beatData.connections[#beatData.connections].flick
     slideData.status = SlideTouchStatus.e_Init
     slideData.lastOperaTime = 0
-    return slideData
+    table.insert(self.ToExecuteSlideList,slideData)
 end
 
 function BangDreamDriver.ExecutingSlideUpdate(frameTime,sinceStartTime)
@@ -387,12 +395,13 @@ function BangDreamDriver.ExecuteSlideData(slideData,sinceStartTime)
     if(slideData.status == SlideTouchStatus.e_Init) then
         local curFingerIndex = BangDreamDriver.GetCanUseTouchId()
         local touchX,touchY = BangDreamConfig.GetTouchPos(slideData.connections[1].lane)
-        BangDreamDriver.touchDown(curFingerIndex,touchX,touchY,slideData.beat,sinceStartTime)
+        BangDreamDriver.touchDown(curFingerIndex,touchX,touchY,slideData.connections[1].beat,sinceStartTime,true)
         slideData.lastOperaTime = sinceStartTime
+        slideData.curFingerIndex = curFingerIndex
         slideData.touchX = touchX
         slideData.touchY = touchY
         slideData.status = SlideTouchStatus.e_TouchDown
-        slideData.connectIndex = 2
+        slideData.connectIndex = 1
         table.insert(BangDreamDriver.ExecutingSlideList,slideData)
         return false
     elseif(slideData.status == SlideTouchStatus.e_TouchDown) then
@@ -404,22 +413,60 @@ function BangDreamDriver.ExecuteSlideData(slideData,sinceStartTime)
         --首先找到第一个未到时间的节点
         local result = -1
         local maxIndex = #slideData.connections
-        for i=slideData.connectIndex,maxIndex do
-            local curData = slideData.connectionsp[i]
+        for i=maxIndex,slideData.connectIndex,-1 do
+            local curData = slideData.connections[i]
             if(curData.time < sinceStartTime) then
                 result = i
                 break
             end
         end
 
+        if(result == slideData.connectIndex) then
+            return false
+        end
+
+        slideData.connectIndex = result
+
         --然后进行下次滑动点的位置计算
-
-
+        local curBeatData = slideData.connections[slideData.connectIndex]
+        local touchX,touchY = BangDreamConfig.GetTouchPos(curBeatData.lane)
+        BangDreamDriver.touchMove(slideData.curFingerIndex,touchX,touchY,curBeatData.beat,sinceStartTime,true)
+        slideData.lastOperaTime = sinceStartTime
+        slideData.touchX = touchX
+        slideData.touchY = touchY
+        if(slideData.connectIndex == #slideData.connections) then
+            if(curBeatData.flick) then
+                slideData.status = SlideTouchStatus.e_TouchFlick
+            else
+                slideData.status = SlideTouchStatus.e_TouchUp
+            end
+        end
         return false
     elseif(slideData.status == SlideTouchStatus.e_TouchFlick) then
+        local operaDtTime = (sinceStartTime - slideData.lastOperaTime) * 1000
+        if(operaDtTime < BangDreamConfig.MoveFrameDtTime) then
+            return false
+        end
+
+        local curBeatData = slideData.connections[#slideData.connections]
+        local targetX,targetY = BangDreamConfig.GetFlickMoveTarget(curBeatData.lane,slideData.touchX,slideData.touchY)
+        slideData.touchX = targetX
+        slideData.touchY = targetY
+        BangDreamDriver.touchMove(slideData.curFingerIndex,slideData.touchX,slideData.touchY,curBeatData.beat,sinceStartTime,true)
+        slideData.lastOperaTime = sinceStartTime
+        slideData.status = SlideTouchStatus.e_TouchUp
 
         return false
     elseif(slideData.status == SlideTouchStatus.e_TouchUp) then
+        local operaDtTime = (sinceStartTime - slideData.lastOperaTime) * 1000
+        if(operaDtTime < BangDreamConfig.MoveFrameDtTime) then
+            return false
+        end
+
+        local curBeatData = slideData.connections[#slideData.connections]
+        BangDreamDriver.touchUp(slideData.curFingerIndex,slideData.touchX,slideData.touchY,curBeatData.beat,sinceStartTime,true)
+        slideData.status = SlideTouchStatus.e_Done
+        BangDreamDriver.ReStoreTouchId(slideData.curFingerIndex)
 
         return true
     end
@@ -462,25 +509,31 @@ end
 
 
 --region touch输入
-function BangDreamDriver.touchDown(fingerIndex,x,y,beatIndex,sinceStartTime)
+function BangDreamDriver.touchDown(fingerIndex,x,y,beatIndex,sinceStartTime,openDebug)
     local startTime = os.clock()
     touchDown(fingerIndex,x,y)
     local executeTime = math.floor((os.clock() - startTime) * 1000)
-    --nLog('按下 beatIndex:'..beatIndex..' frame:'..GlobalFrame..' executeTime:'.. executeTime)
+    if(openDebug) then
+        nLog('按下 beatIndex:'..beatIndex..' startTime:'..sinceStartTime)
+    end
 end
 
-function BangDreamDriver.touchMove(fingerIndex,x,y,beatIndex,sinceStartTime)
+function BangDreamDriver.touchMove(fingerIndex,x,y,beatIndex,sinceStartTime,openDebug)
     local startTime = os.clock()
     touchMove(fingerIndex,x,y)
     local executeTime = math.floor((os.clock() - startTime) * 1000)
-    --nLog('移动 beatIndex:'..beatIndex..' frame:'..GlobalFrame..' executeTime:'.. executeTime)
+    if(openDebug) then
+        nLog('移动 beatIndex:'..beatIndex..' startTime:'..sinceStartTime)
+    end
 end
 
-function BangDreamDriver.touchUp(fingerIndex,x,y,beatIndex,sinceStartTime)
+function BangDreamDriver.touchUp(fingerIndex,x,y,beatIndex,sinceStartTime,openDebug)
     local startTime = os.clock()
     touchUp(fingerIndex,x,y)
     local executeTime = math.floor((os.clock() - startTime) * 1000)
-    -- nLog('抬起 beatIndex:'..beatIndex..' frame:'..GlobalFrame..' executeTime:'.. executeTime)
+    if(openDebug) then
+        nLog('抬起 beatIndex:'..beatIndex..' startTime:'..sinceStartTime)
+    end
 end
 --endregion
 

@@ -1,8 +1,6 @@
 require "TSLib"
 local ts = require("ts")
 
-GlobalFrame = 0
-
 BangDreamConfig = require("BangDreamConfig")
 local BangDreamDriver = require("BangDreamDriver")
 
@@ -196,7 +194,7 @@ end
 
 
 
-BangDreamDriver.Init(1,2)
+BangDreamDriver.Init(2,2)
 
 
 local startTime = ts.ms()
@@ -212,7 +210,6 @@ end
 
 while(true) do
     mSleep(2)
-    GlobalFrame = GlobalFrame + 1
     local curTime = ts.ms()
     local deltaTime = curTime - lastTime
     lastTime = curTime
