@@ -1,20 +1,37 @@
 local BangDreamConfig = {}
 
 BangDreamConfig.TouchXList = {
-    [1] = 210,
-    [2] = 210 + 156 * 1,
-    [3] = 210 + 156 * 2,
-    [4] = 210 + 156 * 3,
-    [5] = 210 + 156 * 4,
-    [6] = 210 + 156 * 5,
-    [7] = 210 + 156 * 6,
+    [1] = 197,
+    [2] = 197 + 148 * 1,
+    [3] = 197 + 148 * 2,
+    [4] = 197 + 148 * 3,
+    [5] = 197 + 148 * 4,
+    [6] = 197 + 148 * 5,
+    [7] = 197 + 148 * 6,
 }
+--七个按键中最左侧的按键x位置
+BangDreamConfig.PosStartX = 197;
+--每个按键的x方向间隔
+BangDreamConfig.PosX_Interval = 148;
+--按键的y坐标
+BangDreamConfig.PosY = 130;
+--按键计算的随机范围
+BangDreamConfig.TouchRandRamge = 0
 
-BangDreamConfig.PosY = 220;
+--检测第一个音符的位置
+BangDreamConfig.CheckIsStartPosY = 149
+
+BangDreamConfig.ColorList = {
+    [1] = {color = 0,pos = {x=84,y=1098},rgb = {0,0,0}}, --横幅黑色
+    [2] = {color = 16777215,pos = {x=247,y=96},rgb = {255,255,255}},  --横幅白色
+    [3] = {color = 0,pos = {x=247,y=96},rgb = {0,0,0}},  --横幅处为黑色
+    [4] = {color = 16777215,pos = {x=129,y=344},rgb = {255,255,255}},  --游戏内点击区域颜色
+    [5] = {color = 10,rgb = {0,0,10}} --检测第一个音符颜色
+}
 
 --获取滑动时的目标位置
 function BangDreamConfig.GetFlickMoveTarget(lane,x,y)
-    return x,y + 20
+    return x,y + 40
 end
 
 --滑动时的滑动多少检测帧
@@ -22,14 +39,29 @@ BangDreamConfig.FlickMoveCount = 1
 --滑动时的间隔时间
 BangDreamConfig.MoveFrameDtTime = 20
 
-function BangDreamConfig.GetTouchPos(index,nextIndex,percent)
-    local x = 220
-    local y = BangDreamConfig.TouchXList[index + 1]
-    if(nextIndex and percent) then
-        local nextY = BangDreamConfig.TouchXList[nextIndex + 1]
-        y = math.floor((nextY + y) / 2)
+function BangDreamConfig.GetTouchPos(index)
+    local x = BangDreamConfig.PosY
+    local y = BangDreamConfig.PosStartX + index * BangDreamConfig.PosX_Interval
+
+    --计算随机位置
+    local randDis = math.random(0,BangDreamConfig.TouchRandRamge)
+    local halfDis = math.floor(randDis / 2)
+    local randOffsetY = math.random(-halfDis,halfDis)
+    local offsetX = math.floor(math.sqrt(randDis * randDis - randOffsetY * randOffsetY))
+    if(math.random(0,1) == 1) then
+        offsetX = -offsetX
     end
 
+    x = x + randOffsetY
+    y = y + offsetX
+    nLog('随机偏移:'..offsetX..' '..randOffsetY)
+    return x,y
+end
+
+--获取检测第一个音符颜色的位置
+function BangDreamConfig.GetChickStartPos(index)
+    local x = BangDreamConfig.CheckIsStartPosY
+    local y = BangDreamConfig.TouchXList[index + 1]
     return x,y
 end
 
@@ -42,6 +74,26 @@ function BangDreamConfig.GetExactTime(BPM,beatIndex)
     local time = 60 / BPM * beatIndex
     return time
 end
+
+function BangDreamConfig.GetBeatExactTime(BPMInfo,beatIndex)
+    local result = 0
+    --说明是当前数据往后找
+    if(beatIndex >= BPMInfo.curBeat) then
+        result = 60 / BPMInfo.curBPM * (beatIndex - BPMInfo.curBeat) + BPMInfo.curBPMTime
+    else    --这里说明要从头开始找
+        local BPMList = BPMInfo.BPMList
+        for i=1,#BPMList do
+            local curBPMInfo = BPMList[i]
+            if(beatIndex >= curBPMInfo.beat) then
+                result = 60 / curBPMInfo.bpm * (beatIndex - curBPMInfo.beat) + curBPMInfo.startTime
+            end
+        end
+    end
+
+    --nLog('计算时间 beat:'..beatIndex..' 时间:'..result)
+    return result
+end
+
 
 function BangDreamConfig.GetAllSoundInfoType()
     BangDreamConfig.allType = {}
@@ -70,6 +122,21 @@ function BangDreamConfig.LoadMusicInfo(songId,difficulty)
     local soundInfo = require(soundInfoPath)
     return soundInfo
 end
+
+--获取第一个按键的位置
+function BangDreamConfig.GetMusicFirstLane(songId,difficulty)
+    local songInfo = BangDreamConfig.LoadMusicInfo(songId,difficulty)
+
+    local curBeatData = songInfo[3]
+    if(curBeatData.type == "Single" or curBeatData.type == "Directional") then
+        return curBeatData.lane
+    elseif(curBeatData.type == "Long" or curBeatData.type == "Slide") then
+        return curBeatData.connections[1].lane
+    end
+
+    return 0
+end
+
 
 function BangDreamConfig.GetMusicAllType(songId,difficulty)
     local musicInfo = BangDreamConfig.LoadMusicInfo(songId,difficulty)
