@@ -1,13 +1,21 @@
 require "TSLib"
 local ts = require("ts")
 
-BangDreamConfig = require("BangDreamConfig")
+
+BangDreamUtils = require("BangDreamUtils")
+DeviceMgr = require("DeviceMgr")
+DeviceMgr.InitByDeviceType(2)
 local BangDreamDriver = require("BangDreamDriver")
 
+--模拟器为2 手机为1 起点为左上角  x水平 y向下
+init(DeviceMgr.GetInitDir())
 
-init(2)
+-- while(true) do
+--     touchDown(300,100)
+--     touchUp(300,100)
+--     mSleep(100)
+-- end
 
---BangDreamConfig.GetAllSoundInfoType()
 
 --region ---------------------------------------测试touchDown/touchUp/touchMove start------------------------------------------------------
 --[[
@@ -43,7 +51,7 @@ while(true) do
     if(curStatus == TouchStatus.e_Init) then
         if(canInput) then
             for touchIndex=0,forCount do
-                local x,y = BangDreamConfig.GetTouchPos(touchIndex)
+                local x,y = DeviceMgr.GetTouchPos(touchIndex)
                 touchDown(touchIndex + 1,x,y)
             end
             lastTouchTime = curTime
@@ -53,7 +61,7 @@ while(true) do
     elseif(curStatus == TouchStatus.e_TouchDown) then
         if(canInput) then
             for touchIndex = 0,forCount do
-                local x,y = BangDreamConfig.GetTouchPos(touchIndex)
+                local x,y = DeviceMgr.GetTouchPos(touchIndex)
                 touchMove(touchIndex + 1,x + 10,y)
             end
             lastTouchTime = curTime
@@ -63,7 +71,7 @@ while(true) do
     elseif(curStatus == TouchStatus.e_TouchMove) then
         if(canInput) then
             for touchIndex=0,forCount do
-                local x,y = BangDreamConfig.GetTouchPos(touchIndex)
+                local x,y = DeviceMgr.GetTouchPos(touchIndex)
                 touchUp(touchIndex + 1,x + 10,y)
             end
             lastTouchTime = curTime
@@ -147,7 +155,7 @@ while(true) do
     if(curStatus == TouchStatus.e_Init) then
         if(canInput) then
             for touchIndex=0,forCount do
-                local x,y = BangDreamConfig.GetTouchPos(touchIndex)
+                local x,y = DeviceMgr.GetTouchPos(touchIndex)
                 TouchInstDown(touchIndex + 1,x,y)
             end
             lastTouchTime = curTime
@@ -157,7 +165,7 @@ while(true) do
     elseif(curStatus == TouchStatus.e_TouchDown) then
         if(canInput) then
             for touchIndex = 0,forCount do
-                local x,y = BangDreamConfig.GetTouchPos(touchIndex)
+                local x,y = DeviceMgr.GetTouchPos(touchIndex)
                 TouchInstMove(touchIndex + 1,x + 10,y)
             end
             lastTouchTime = curTime
@@ -167,7 +175,7 @@ while(true) do
     elseif(curStatus == TouchStatus.e_TouchMove) then
         if(canInput) then
             for touchIndex=0,forCount do
-                local x,y = BangDreamConfig.GetTouchPos(touchIndex)
+                local x,y = DeviceMgr.GetTouchPos(touchIndex)
                 TouchInstUp(touchIndex + 1)
             end
             lastTouchTime = curTime
@@ -236,11 +244,11 @@ end
 
 --region-------------测试取色----------------------------
 
-local musicId = 249
+local musicId = 1
 local difficult = 3
 
 BangDreamDriver.Init(musicId,difficult)
-local firstLane = BangDreamConfig.GetMusicFirstLane(musicId,difficult)
+local firstLane = DeviceMgr.GetMusicFirstLane(musicId,difficult)
 nLog('firstLane:'..firstLane)
 
 local eViewStatus = {
@@ -262,23 +270,23 @@ while(true) do
     lastTime = curTime
 
     if(curStatus == eViewStatus.e_Init) then
-        local curConfig1 = BangDreamConfig.ColorList[2]
+        local curConfig1 = DeviceMgr.ColorList[2]
         local color1 = getColor(curConfig1.pos.x,curConfig1.pos.y)
-        local curConfig2 = BangDreamConfig.ColorList[1]
+        local curConfig2 = DeviceMgr.ColorList[1]
         local color2 = getColor(curConfig2.pos.x,curConfig2.pos.y)
         if(color1 == curConfig1.color and color2 == curConfig2.color) then
             curStatus = eViewStatus.e_MusicInfoView
             nLog('进入歌曲信息界面')
         end
     elseif(curStatus == eViewStatus.e_MusicInfoView) then
-        local curConfig = BangDreamConfig.ColorList[3]
+        local curConfig = DeviceMgr.ColorList[3]
         local color1 = getColor(curConfig.pos.x,curConfig.pos.y)
         if(color1 == curConfig.color) then
             curStatus = eViewStatus.e_WaitPlay
             nLog('游戏前等待状态')
         end
     elseif(curStatus == eViewStatus.e_WaitPlay) then
-        local curConfig = BangDreamConfig.ColorList[4]
+        local curConfig = DeviceMgr.ColorList[4]
         local color1 = getColor(curConfig.pos.x,curConfig.pos.y)
         if(color1 == curConfig.color) then
             curStatus = eViewStatus.e_StartPlay
@@ -286,12 +294,12 @@ while(true) do
         end
     elseif(curStatus == eViewStatus.e_StartPlay) then
         --检测对应第一个音符时间
-        local x,y = BangDreamConfig.GetChickStartPos(firstLane)
+        local x,y = DeviceMgr.GetChickStartPos(firstLane)
         local color = getColor(x,y)
-        -- nLog('检测位置:'..x..' '..y..' 颜色:'..color)
-        local curConfig = BangDreamConfig.ColorList[5]
+        --nLog('检测位置:'..x..' '..y..' 颜色:'..color)
+        local curConfig = DeviceMgr.ColorList[5]
         if(color ~= curConfig.color) then
-            nLog('检测到第一个音符:'..curTime)
+            --nLog('检测到第一个音符:'..curTime)
             break
         end
     end
@@ -312,7 +320,7 @@ end
 --     break
 -- end
 
-mSleep(10)
+mSleep(0)
 
 startTime = ts.ms()
 lastTime = startTime
