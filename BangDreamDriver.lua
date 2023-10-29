@@ -56,11 +56,13 @@ local SlideTouchStatus = {
 
 
 --region 对外接口
+
 function BangDreamDriver.Init(songId,difficulty)
     BangDreamDriver.InitOnce()
     BangDreamDriver.Reset()
     BangDreamDriver.InitMusic(songId,difficulty)
 end
+
 --endregion
 
 --仅需要初始化一次的逻辑

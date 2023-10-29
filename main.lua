@@ -1,10 +1,9 @@
 require "TSLib"
 local ts = require("ts")
 
-
 BangDreamUtils = require("BangDreamUtils")
 DeviceMgr = require("DeviceMgr")
-DeviceMgr.InitByDeviceType(2)
+DeviceMgr.InitByDeviceType(3)
 local BangDreamDriver = require("BangDreamDriver")
 
 --模拟器为2 手机为1 起点为左上角  x水平 y向下
@@ -244,13 +243,6 @@ end
 
 --region-------------测试取色----------------------------
 
-local musicId = 1
-local difficult = 3
-
-BangDreamDriver.Init(musicId,difficult)
-local firstLane = DeviceMgr.GetMusicFirstLane(musicId,difficult)
-nLog('firstLane:'..firstLane)
-
 local eViewStatus = {
     e_Init = 1,
     e_MusicInfoView = 2,
@@ -258,6 +250,7 @@ local eViewStatus = {
     e_StartPlay = 4,
 }
 
+local firstLane = 0
 local lastTime = 0
 local startTime = 0
 local curStatus = eViewStatus.e_Init
@@ -274,8 +267,16 @@ while(true) do
         local color1 = getColor(curConfig1.pos.x,curConfig1.pos.y)
         local curConfig2 = DeviceMgr.ColorList[1]
         local color2 = getColor(curConfig2.pos.x,curConfig2.pos.y)
+        --nLog('位置1:'..curConfig1.pos.x..' '..curConfig1.pos.y..' 颜色:'..color1)
+        --nLog('位置2:'..curConfig2.pos.x..' '..curConfig2.pos.y..' 颜色:'..color2)
         if(color1 == curConfig1.color and color2 == curConfig2.color) then
             curStatus = eViewStatus.e_MusicInfoView
+            local difficultId = DeviceMgr.GetMusicDifficult()
+            local musicId = DeviceMgr.GetJacketListByRectId()
+            nLog('难度为:'..difficultId..' 歌曲id:'..musicId)
+            BangDreamDriver.Init(musicId,difficultId)
+            firstLane = DeviceMgr.GetMusicFirstLane(musicId,difficultId)
+            nLog('firstLane:'..firstLane)
             nLog('进入歌曲信息界面')
         end
     elseif(curStatus == eViewStatus.e_MusicInfoView) then
