@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "R28On5ZJPTeB4ch9W8oIk7XIPq4LHc4ZouuMW+YG0PuYt0cReVqANUdNDsEV72DIXiBuCHpaNQRzvJg74xFZbw==",
+  "success": true,
+  "projectFilePath": "E:\\VisualStuidoProject\\BangDreamDataDownLoader\\BangDreamDataDownLoader.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\13997\\.nuget\\packages\\newtonsoft.json\\13.0.3\\newtonsoft.json.13.0.3.nupkg.sha512",
+    "C:\\Users\\13997\\.nuget\\packages\\sixlabors.imagesharp\\3.0.2\\sixlabors.imagesharp.3.0.2.nupkg.sha512"
+  ],
+  "logs": []
+}

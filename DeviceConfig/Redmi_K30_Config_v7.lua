@@ -10,10 +10,11 @@ DeviceConfig.PosX_Interval = 215;
 --按键的y坐标
 DeviceConfig.PosY = 851;
 --按键计算的随机范围
-DeviceConfig.TouchRandRamge = 0
+DeviceConfig.TouchRandRamge = 30
 
 --检测第一个音符的位置
-DeviceConfig.CheckIsStartPosY = 820
+-- DeviceConfig.CheckIsStartPosY = 820
+DeviceConfig.CheckIsStartPosY = 756
 
 --检查歌曲图的区域位置
 DeviceConfig.RectCheckList = {
@@ -25,14 +26,38 @@ DeviceConfig.RectCheckList = {
 --歌曲界面的图片左上角位置
 DeviceConfig.JacketLeftTopPos = {x=961,y=118}
 
+--高清晰度
+-- DeviceConfig.ColorList = {
+--     [1] = {color = 0,pos = {x=164,y=690},rgb = {0,0,0}}, --横幅黑色
+--     [2] = {color = 16711421,pos = {x=213,y=695},rgb = {254,254,253}},  --横幅白色
+--     [3] = {color = 0,pos = {x=213,y=695},rgb = {0,0,0}},  --横幅处为黑色
+--     [4] = {color = 16777215,pos = {x=554,y=851},rgb = {255,255,255}},  --游戏内点击区域颜色
+-- }
 
+--低清晰度
 DeviceConfig.ColorList = {
-    [1] = {color = 65793,pos = {x=164,y=690},rgb = {1,1,1}}, --横幅黑色
+    [1] = {color = 0,pos = {x=164,y=680},rgb = {0,0,0}}, --横幅黑色
     [2] = {color = 16711421,pos = {x=213,y=695},rgb = {254,254,253}},  --横幅白色
     [3] = {color = 0,pos = {x=213,y=695},rgb = {0,0,0}},  --横幅处为黑色
-    [4] = {color = 16777215,pos = {x=554,y=851},rgb = {255,255,255}},  --游戏内点击区域颜色
-    [5] = {color = 17,rgb = {0,0,17}}, --检测第一个音符颜色
+    [4] = {color = 16777215,pos = {x=555,y=851},rgb = {255,255,255}},  --游戏内点击区域颜色
+
+    --检测开始游戏的位置和颜色
+    [5] = {color = 16727154,pos = {x=1829,y=881},rgb = {255,60,114}},  --开始游戏的红色位置
+    [6] = {color = 16776957,pos = {x=1874,y=875},rgb = {255,254,253}},  --开始游戏的白色位置
 }
+
+--检查第一个音符的x坐标
+DeviceConfig.TouchStartPosListX = {
+    [0] = 654,
+    [1] = 830,
+    [2] = 985,
+    [3] = 1200,
+    [4] = 1415,
+    [5] = 1556,
+    [6] = 1766,
+}
+
+DeviceConfig.TouchPosBlackColor = 17
 
 --歌曲界面难度检测的配置相关
 DeviceConfig.DifficultCheckConfig = {
@@ -41,7 +66,7 @@ DeviceConfig.DifficultCheckConfig = {
     [15543598] = 3, --expert 红色
     [16689442] = 2, --hard 黄色
     [1619745] = 1,  --normal 绿色
-    [3559677] = 0,  --easy 蓝色
+    [3624696] = 0,  --easy 蓝色
 }
 
 function DeviceConfig.GetTouchPos(index)
@@ -57,16 +82,18 @@ function DeviceConfig.GetTouchPos(index)
         offsetX = -offsetX
     end
 
-    x = x + randOffsetY
-    y = y + offsetX
-    --nLog('随机偏移:'..offsetX..' '..randOffsetY)
+    x = x + offsetX
+    y = y + randOffsetY
+    -- nLog('随机偏移:'..offsetX..' '..randOffsetY)
     return x,y
 end
+
+
 
 --获取检测第一个音符颜色的位置
 function DeviceConfig.GetChickStartPos(index)
     local y = DeviceConfig.CheckIsStartPosY
-    local x = DeviceConfig.PosStartX + index * DeviceConfig.PosX_Interval
+    local x = DeviceConfig.TouchStartPosListX[index]
     return x,y
 end
 

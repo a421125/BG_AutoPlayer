@@ -54,6 +54,17 @@ local SlideTouchStatus = {
     e_Done = 4,
 }
 
+--水平滑动列表
+BangDreamDriver.ToExecuteDirList = {}
+BangDreamDriver.ExecutingDirList = {}
+--单次点击的状态
+local DirTouchStatus = {
+    e_Init = 0,
+    e_TouchDown = 1,
+    e_TouchFlick = 2,
+    e_TouchUp = 3,
+}
+
 
 --region 对外接口
 
@@ -98,6 +109,13 @@ function BangDreamDriver.Reset()
         curBPMTime = 0,
         curBPM = 1,
     }
+
+    BangDreamDriver.ToExecuteSingleList = {}
+    BangDreamDriver.ExecutingSingleList = {}
+    BangDreamDriver.ToExecuteLongList = {}
+    BangDreamDriver.ExecutingLongList = {}
+    BangDreamDriver.ToExecuteSlideList = {}
+    BangDreamDriver.ExecutingSlideList = {}
 end
 
 function BangDreamDriver.InitMusic(songId,difficulty)
@@ -133,6 +151,24 @@ function BangDreamDriver.Update(frameTime,sinceStartTime)
 
     BangDreamDriver.ExecutingSlideUpdate(frameTime,sinceStartTime)
     BangDreamDriver.ToExecuteSlideUpdate(frameTime,sinceStartTime)
+
+    BangDreamDriver.ExecutingDirUpdate(frameTime,sinceStartTime)
+    BangDreamDriver.ToExecuteDirUpdate(frameTime,sinceStartTime)
+
+    if(
+        #BangDreamDriver.ToExecuteSingleList == 0 and
+        #BangDreamDriver.ExecutingSingleList == 0 and
+        #BangDreamDriver.ToExecuteLongList == 0 and
+        #BangDreamDriver.ExecutingLongList == 0 and
+        #BangDreamDriver.ToExecuteSlideList == 0 and
+        #BangDreamDriver.ExecutingSlideList == 0 and
+        #BangDreamDriver.ToExecuteDirList == 0 and
+        #BangDreamDriver.ExecutingDirList == 0
+    ) then
+        return true
+    end
+
+    return false
 end
 
 --region 点击模块
@@ -221,8 +257,16 @@ function BangDreamDriver.ToExecuteSingleUpdate(frameTime,sinceStartTime)
         end
         local dTime = (curData.time - sinceStartTime) * 1000
         local threhold = 14
+
+        if(GlobalConfig.useRandomGreat) then
+            local randNum = math.random(0,100)
+            if(randNum > 96) then
+                threhold = 40
+            end
+        end
+
         if(curData.flick) then
-            threhold = 24
+            threhold = 26
         end
         if(dTime >= threhold) then
             break
@@ -230,6 +274,97 @@ function BangDreamDriver.ToExecuteSingleUpdate(frameTime,sinceStartTime)
 
         self.ExecuteSingleData(curData,sinceStartTime)
         table.remove(self.ToExecuteSingleList,index)
+    end
+end
+
+--endregion
+
+--region 水平滑动模块
+function BangDreamDriver.DirectionCreate(beatData)
+    local dirData = {}
+    dirData.beat = beatData.beat
+    dirData.lane = beatData.lane
+    dirData.direction = beatData.direction
+    dirData.time = DeviceMgr.GetBeatExactTime(BangDreamDriver.BPMInfo,beatData.beat)
+    dirData.status = DirTouchStatus.e_Init
+    table.insert(self.ToExecuteDirList,dirData)
+end
+
+--dirData 音符数据
+--sinceStartTime 游戏开始至现在时间
+function BangDreamDriver.ExecuteDirData(dirData,sinceStartTime)
+    if(dirData.status == DirTouchStatus.e_Init) then
+        local curFingerIndex = BangDreamDriver.GetCanUseTouchId(sinceStartTime)
+        local touchX,touchY = DeviceMgr.GetTouchPos(dirData.lane)
+        BangDreamDriver.touchDown(curFingerIndex,touchX,touchY,dirData.beat,sinceStartTime)
+        dirData.curFingerIndex = curFingerIndex
+        dirData.touchX = touchX
+        dirData.touchY = touchY
+        dirData.status = DirTouchStatus.e_TouchDown
+        table.insert(BangDreamDriver.ExecutingDirList,dirData)
+
+        dirData.lastOperaTime = sinceStartTime
+        dirData.moveCount = 0
+        return false
+    elseif(dirData.status == DirTouchStatus.e_TouchDown) then
+        local deltaTime = (sinceStartTime - dirData.lastOperaTime) * 1000
+        if(deltaTime >= DeviceMgr.MoveFrameDtTime) then
+            dirData.lastOperaTime = sinceStartTime
+            dirData.moveCount = dirData.moveCount + 1
+            local targetX,targetY = DeviceMgr.GetDirMoveTarget(dirData.touchX,dirData.touchY,dirData.direction == "Left")
+            dirData.touchX = targetX
+            dirData.touchY = targetY
+            BangDreamDriver.touchMove(dirData.curFingerIndex,dirData.touchX,dirData.touchY,dirData.beat,sinceStartTime)
+            if(dirData.moveCount >= DeviceMgr.FlickMoveCount) then
+                dirData.status = DirTouchStatus.e_TouchFlick
+            end
+        end
+        return false
+    elseif(dirData.status == DirTouchStatus.e_TouchFlick) then
+        local deltaTime = (sinceStartTime - dirData.lastOperaTime) * 1000
+        if(deltaTime >= DeviceMgr.MoveFrameDtTime) then
+            BangDreamDriver.touchUp(dirData.curFingerIndex,dirData.touchX,dirData.touchY,dirData.beat,sinceStartTime)
+            dirData.status = DirTouchStatus.e_TouchUp
+            BangDreamDriver.ReStoreTouchId(dirData.curFingerIndex,sinceStartTime)
+            return true
+        end
+        return false
+    end
+
+    return true
+end
+
+function BangDreamDriver.ExecutingDirUpdate(frameTime,sinceStartTime)
+    local index = 1
+    while(#self.ExecutingDirList >= index) do
+        local curData = self.ExecutingDirList[index]
+        if(curData == nil) then
+            nLog('[ExecutingDirList]Length:'..#self.ExecutingDirList..' index:'..index)
+        end
+        local isFinish = self.ExecuteDirData(curData,sinceStartTime)
+        if(isFinish) then
+            table.remove(self.ExecutingDirList,index)
+        else
+            index = index + 1
+        end
+    end
+end
+
+function BangDreamDriver.ToExecuteDirUpdate(frameTime,sinceStartTime)
+    local index = 1
+    while(#self.ToExecuteDirList >= index) do
+        local curData = self.ToExecuteDirList[index]
+        if(curData == nil) then
+            nLog('[ToExecuteDirList]Length:'..#self.ToExecuteDirList..' index:'..index)
+        end
+        local dTime = (curData.time - sinceStartTime) * 1000
+        local threhold = 30
+        if(dTime >= threhold) then
+            break
+        end
+
+        self.ExecuteDirData(curData,sinceStartTime)
+        table.remove(self.ToExecuteDirList,index)
     end
 end
 
@@ -480,10 +615,6 @@ function BangDreamDriver.ExecuteSlideData(slideData,sinceStartTime)
 end
 
 --endregion
-
-function BangDreamDriver.DirectionCreate(beatData)
-
-end
 
 function BangDreamDriver.BPMCreate(beatData)
     local BPMInfo = BangDreamDriver.BPMInfo

@@ -59,7 +59,43 @@ end
 
 --获取滑动时的目标位置
 function DeviceMgr.GetFlickMoveTarget(lane,x,y)
-    return x,y + 40
+    local randX = math.random(-20,20)
+    local randY = math.random(50,80)
+    local randDis = math.random(35,49)
+    local distance = math.sqrt(randX * randX + randY * randY)
+    randX = math.floor(randX / distance * randDis)
+    randY = math.floor(randY / distance * randDis)
+    -- nLog('粉键随机:'..randX..' '..randY)
+    return x + randX,y + randY
+end
+
+function DeviceMgr.GetDirMoveTarget(x,y,isLeft)
+    local randX = math.random(50,80)
+    local randY = math.random(-6,6)
+    local randDis = math.random(35,49)
+    local distance = math.sqrt(randX * randX + randY * randY)
+    randX = math.floor(randX / distance * randDis)
+    randY = math.floor(randY / distance * randDis)
+
+    -- nLog('水平键随机:'..randX..' '..randY)
+
+    if(isLeft) then
+        return x - randX,y + randY
+    else
+        return x + randX,y + randY
+    end
+end
+
+function DeviceMgr.GetClickPlayPos()
+    if(DeviceMgr.ColorList == nil) then
+        return 0,0
+    end
+
+    local curCOnfig = DeviceMgr.ColorList[5]
+    local randX = math.random(-15,15) + curCOnfig.pos.x
+    local randY = math.random(-15,15) + curCOnfig.pos.y
+    nLog('原始位置为:'..curCOnfig.pos.x..' '..curCOnfig.pos.y..' 新位置为:'..randX..' '..randY)
+    return randX,randY
 end
 
 --通过BPM和beat来获取当前beat的准确时间
@@ -109,6 +145,10 @@ function DeviceMgr.GetChickStartPos(index)
     return DeviceConfig.GetChickStartPos(index)
 end
 
+function DeviceMgr.GetChickStartColor()
+    return DeviceConfig.TouchPosBlackColor
+end
+
 function DeviceMgr.GetTouchPos(index)
     return DeviceConfig.GetTouchPos(index)
 end
@@ -116,6 +156,7 @@ end
 ----在歌曲页面找歌曲id
 --idList:传入的已经过滤的歌曲id
 function DeviceMgr.GetJacketListByRectId()
+    keepScreen(true)
     local JacketLeftTopPos = DeviceConfig.JacketLeftTopPos
     local totalClientColorList = {}
 
@@ -150,9 +191,7 @@ function DeviceMgr.GetJacketListByRectId()
         return a.dif < b.dif
     end)
 
-    nLog('[找歌] 第一轮 第一个为:'..jacketSelectList[1].name..' 差异为:'..jacketSelectList[1].dif)
     local lastIndex = #jacketSelectList
-    nLog('[找歌] 第一轮 最后一个为:'..jacketSelectList[lastIndex].name..' 差异为:'..jacketSelectList[lastIndex].dif)
 
     local round1List = {}
     for i=1,10 do
@@ -178,10 +217,11 @@ function DeviceMgr.GetJacketListByRectId()
         return a.dif < b.dif
     end)
 
-    for i=1,5 do
+    for i=1,3 do
         nLog('[找歌] 最终结果 序号:'..i..' '..round1List[i].name..' 差异为:'..round1List[i].dif)
     end
 
+    keepScreen(false)
     return JacketColorConfig[round1List[1].name].musicIndex
 end
 
